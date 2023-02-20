@@ -22,6 +22,7 @@ class Generator(
     private val maxBatchCount: Int? = null,
     private val resetBatchCountOnConfigChange: Boolean = true,
     private val onStatusChange: (String) -> Unit,
+    private val onProgress: (Progress) -> Unit,
 ) {
     private var cancelled = false
 
@@ -56,8 +57,9 @@ class Generator(
                 val fullFormattedBatchIndex = "${formattedConfigId}_${batchIndex.format(6)}"
 
                 onStatusChange("generating batch $fullFormattedBatchIndex")
+
                 val images = Api.generate(
-                    Txt2ImgRequest(
+                    request = Txt2ImgRequest(
                         prompt = currConfig.prompt,
                         negativePrompt = currConfig.negativePrompt,
                         width = currConfig.width,
@@ -66,7 +68,9 @@ class Generator(
                         steps = currConfig.steps,
                         batchSize = currConfig.batchSize,
                         cfgScale = currConfig.cfgScale,
-                    )
+                    ),
+                    progressDelayInMs = 1000,
+                    onProgress = onProgress,
                 )
 
                 onStatusChange("writing batch")
@@ -107,7 +111,7 @@ class Generator(
             steps           ${config.steps}
             batchSize       ${config.batchSize}
             cfgScale        ${config.cfgScale}
-            """.trimIndent()
+            """.trimIndent(),
         )
         return formattedNumber
     }

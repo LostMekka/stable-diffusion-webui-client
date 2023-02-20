@@ -1,28 +1,34 @@
 package de.lostmekka.sdwuic
 
-import androidx.compose.material.MaterialTheme
 import androidx.compose.desktop.ui.tooling.preview.Preview
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.Button
 import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.Icon
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import de.lostmekka.sdwuic.components.ImageTileList
 import de.lostmekka.sdwuic.components.Input
 import de.lostmekka.sdwuic.components.Select
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import org.jetbrains.skia.Image.Companion.makeFromEncoded
 
 fun main() = application {
     Window(onCloseRequest = ::exitApplication) {
@@ -47,6 +53,7 @@ fun App() {
 
     var currGenerator by remember { mutableStateOf<Generator?>(null) }
     var generatorStatus by remember { mutableStateOf("waiting to start") }
+    var progressStatus by remember { mutableStateOf<String?>(null) }
     var canUpdateGenerator by remember { mutableStateOf(false) }
 
     remember {
@@ -61,7 +68,7 @@ fun App() {
         }
     }
 
-    fun busyOperation(op: () -> Unit) {
+    fun busyOperation(op: suspend () -> Unit) {
         working = true
         CoroutineScope(Dispatchers.IO).launch {
             op()
@@ -69,11 +76,16 @@ fun App() {
         }
     }
 
+    fun onProgress(progress: Progress) {
+        if (progress.currentImage != null) images = listOf(progress.currentImage)
+        progressStatus = "%.2f%%".format(progress.progress * 100)
+    }
+
     fun generate(batchSize: Int) {
         busyOperation {
             Api.setModel(modelData!!.second)
             images = Api.generate(
-                Txt2ImgRequest(
+                request = Txt2ImgRequest(
                     prompt = prompt,
                     negativePrompt = negativePrompt,
                     sampler = samplerData!!.second,
@@ -82,8 +94,11 @@ fun App() {
                     steps = steps,
                     batchSize = batchSize,
                     cfgScale = cfgScale,
-                )
+                ),
+                progressDelayInMs = 1000,
+                onProgress = ::onProgress,
             )
+            progressStatus = null
         }
     }
 
@@ -151,93 +166,112 @@ fun App() {
                 },
                 onEnter = ::updateGenerator,
             )
-            Input(
-                label = "Batch size",
-                value = batchSize,
-                parser = { value -> value.toIntOrNull()?.takeIf { it in 1..16 } },
-                onChange = {
-                    batchSize = it
-                    canUpdateGenerator = true
-                },
-                onEnter = ::updateGenerator
-            )
-            Input(
-                label = "Steps",
-                value = steps,
-                parser = { value -> value.toIntOrNull()?.takeIf { it in 1..100 } },
-                onChange = {
-                    steps = it
-                    canUpdateGenerator = true
-                },
-                onEnter = ::updateGenerator
-            )
-            Input(
-                label = "Cfg scale",
-                value = cfgScale,
-                parser = { value -> value.toFloatOrNull()?.takeIf { it in 1f..30f } },
-                onChange = {
-                    cfgScale = it
-                    canUpdateGenerator = true
-                },
-                onEnter = ::updateGenerator
-            )
-            Column {
-                Row {
-                    Button(
-                        onClick = {
-                            currGenerator = Generator(
-                                config = generatorConfigFromCurrentState(),
-                                onStatusChange = { generatorStatus = it },
-                            )
-                            canUpdateGenerator = false
+            Row {
+                Column(modifier = Modifier.weight(1f)) {
+                    Input(
+                        label = "Batch size",
+                        value = batchSize,
+                        parser = { value -> value.toIntOrNull()?.takeIf { it in 1..16 } },
+                        onChange = {
+                            batchSize = it
+                            canUpdateGenerator = true
                         },
-                        enabled = currGenerator == null && isInitialized,
-                        content = { Text("start generator") },
-                    )
-                    Button(
-                        onClick = {
-                            currGenerator?.config = generatorConfigFromCurrentState()
-                            canUpdateGenerator = false
-                        },
-                        enabled = currGenerator != null && canUpdateGenerator,
-                        content = { Text("update generator config") },
-                    )
-                    Button(
-                        onClick = {
-                            // TODO: prevent multiple clicks
-                            currGenerator?.let {
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    it.close()
-                                    currGenerator = null
-                                }
-                            }
-                        },
-                        enabled = currGenerator != null,
-                        content = { Text("stop generator") },
+                        onEnter = ::updateGenerator,
                     )
                 }
+                Column(modifier = Modifier.weight(1f)) {
+                    Input(
+                        label = "Steps",
+                        value = steps,
+                        parser = { value -> value.toIntOrNull()?.takeIf { it in 1..100 } },
+                        onChange = {
+                            steps = it
+                            canUpdateGenerator = true
+                        },
+                        onEnter = ::updateGenerator,
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Input(
+                        label = "Cfg scale",
+                        value = cfgScale,
+                        parser = { value -> value.toFloatOrNull()?.takeIf { it in 1f..30f } },
+                        onChange = {
+                            cfgScale = it
+                            canUpdateGenerator = true
+                        },
+                        onEnter = ::updateGenerator,
+                    )
+                }
+            }
+            Row {
+                Button(
+                    onClick = {
+                        currGenerator = Generator(
+                            config = generatorConfigFromCurrentState(),
+                            onStatusChange = { generatorStatus = it },
+                            onProgress = ::onProgress,
+                        )
+                        canUpdateGenerator = false
+                    },
+                    enabled = currGenerator == null && isInitialized,
+                    content = {
+                        Icon(Icons.Default.PlayArrow, null)
+                        Text("start generator")
+                    },
+                )
+                Button(
+                    onClick = {
+                        currGenerator?.config = generatorConfigFromCurrentState()
+                        canUpdateGenerator = false
+                    },
+                    enabled = currGenerator != null && canUpdateGenerator,
+                    content = {
+                        Icon(Icons.Default.Refresh, null)
+                        Text("update generator config")
+                    },
+                )
+                Button(
+                    onClick = {
+                        // TODO: prevent multiple clicks
+                        currGenerator?.let {
+                            CoroutineScope(Dispatchers.IO).launch {
+                                it.close()
+                                currGenerator = null
+                                progressStatus = null
+                            }
+                        }
+                    },
+                    enabled = currGenerator != null,
+                    content = {
+                        Icon(Icons.Default.Close, null)
+                        Text("stop generator")
+                    },
+                )
+            }
+            Row {
                 Text("Generator status: $generatorStatus")
+                Text(progressStatus?.let { "($it)" } ?: "")
             }
             Row {
                 Button(
                     onClick = { generate(1) },
                     enabled = !working && currGenerator == null && isInitialized,
-                    content = { Text("generate single image") },
+                    content = {
+                        Icon(Icons.Default.Search, null)
+                        Text("generate single image")
+                    },
                 )
                 Button(
                     onClick = { generate(batchSize) },
                     enabled = !working && currGenerator == null && isInitialized,
-                    content = { Text("generate single batch") },
+                    content = {
+                        Icon(Icons.Default.Search, null)
+                        Text("generate single batch")
+                    },
                 )
             }
-            Row {
-                for (imageBytes in images) {
-                    Image(
-                        bitmap = makeFromEncoded(imageBytes).toComposeImageBitmap(),
-                        contentDescription = null,
-                    )
-                }
-            }
+            if (images.isNotEmpty()) ImageTileList(images, 256.dp)
         }
     }
 }

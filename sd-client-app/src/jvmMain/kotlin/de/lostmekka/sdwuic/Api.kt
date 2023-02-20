@@ -2,73 +2,129 @@ package de.lostmekka.sdwuic
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.github.kittinunf.fuel.Fuel
+import com.github.kittinunf.fuel.core.Request
+import com.github.kittinunf.fuel.core.ResponseDeserializable
+import com.github.kittinunf.fuel.core.await
+import com.github.kittinunf.fuel.jackson.jacksonDeserializerOf
 import com.github.kittinunf.fuel.jackson.objectBody
-import com.github.kittinunf.fuel.jackson.responseObject
 import com.github.kittinunf.fuel.util.decodeBase64
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.io.InputStream
+import java.io.Reader
 
 object Api {
     private var fullConfig: FullConfigResponse? = null
-    private fun reloadFullConfig(): FullConfigResponse {
+    private suspend fun reloadFullConfig(): FullConfigResponse {
         return Fuel
             .get("${Config.apiBasePath}/config")
-            .responseObject<FullConfigResponse>()
-            .third
-            .get()
+            .await<FullConfigResponse>()
             .also { fullConfig = it }
     }
 
-    private fun getFullConfig() = synchronized(this) { fullConfig ?: reloadFullConfig() }
+    private val configMutex = Mutex()
+    private suspend fun getFullConfig() = configMutex.withLock { fullConfig ?: reloadFullConfig() }
 
-    fun getAvailableModels(): List<String> {
+    suspend fun getAvailableModels(): List<String> {
         val element = getFullConfig().components.first { it.props.elementId == "setting_sd_model_checkpoint" }
         return element.props.choices.orEmpty()
     }
 
-    fun getAvailableTxt2ImgSamplers(): List<String> {
+    suspend fun getAvailableTxt2ImgSamplers(): List<String> {
         val element = getFullConfig().components.first { it.props.elementId == "txt2img_sampling" }
         return element.props.choices.orEmpty()
     }
 
-    fun getAvailableImg2ImgSamplers(): List<String> {
+    suspend fun getAvailableImg2ImgSamplers(): List<String> {
         val element = getFullConfig().components.first { it.props.elementId == "img2img_sampling" }
         return element.props.choices.orEmpty()
     }
 
     private var currentModel: String? = null
-    fun getCurrentModel(): String {
+    suspend fun getCurrentModel(): String {
         return currentModel ?: Fuel
             .get("${Config.apiBasePath}/sdapi/v1/options")
-            .responseObject<Map<String, Any>>()
-            .third
-            .get()
+            .await<Map<String, Any>>()
             .let { it["sd_model_checkpoint"] as String }
             .also { currentModel = it }
     }
 
-    fun setModel(newModel: String): String {
+    suspend fun setModel(newModel: String): String {
         require(newModel in getAvailableModels())
         if (newModel == currentModel) return newModel
         Fuel.post("${Config.apiBasePath}/sdapi/v1/options")
             .objectBody(mapOf("sd_model_checkpoint" to newModel))
             .timeout(1000 * 60 * 2)
             .timeoutRead(1000 * 60 * 2)
-            .responseString()
-            .third
-            .get()
+            .awaitString()
         currentModel = newModel
         return newModel
     }
 
-    fun generate(request: Txt2ImgRequest): List<ByteArray> {
-        val (_, _, result) = Fuel
+    suspend fun generate(request: Txt2ImgRequest): List<ByteArray> {
+        val result = Fuel
             .post("${Config.apiBasePath}/sdapi/v1/txt2img")
             .timeout(1000 * 60 * 2)
             .timeoutRead(1000 * 60 * 2)
             .objectBody(request)
-            .responseObject<Txt2ImgResponse>()
-        return result.get().images.map { it.decodeBase64()!! }
+            .await<Txt2ImgResponse>()
+        return result.images.map { it.decodeBase64()!! }
+    }
+
+    suspend fun generate(request: Txt2ImgRequest, progressDelayInMs: Long, onProgress: (Progress) -> Unit): List<ByteArray> {
+        return coroutineScope {
+            val previewJob = launch {
+                while (true) {
+                    delay(progressDelayInMs)
+                    onProgress(getProgress())
+                }
+            }
+            val images = generate(request)
+            previewJob.cancel()
+            images
+        }
+    }
+
+    suspend fun getProgress(): Progress {
+        val response = Fuel
+            .get("${Config.apiBasePath}/sdapi/v1/progress")
+            .timeout(1000 * 10)
+            .timeoutRead(1000 * 10)
+            .objectBody(mapOf("skip_current_image" to false))
+            .await<ProgressResponse>()
+        return Progress(
+            response.progress,
+            response.eta,
+            response.currentImage?.decodeBase64(),
+        )
     }
 }
+
+private suspend inline fun <reified T: Any> Request.await() = await(jacksonDeserializerOf<T>())
+
+private suspend inline fun Request.awaitString() = await(RawDeserializer)
+
+private object RawDeserializer : ResponseDeserializable<String> {
+    override fun deserialize(reader: Reader) = reader.readText()
+    override fun deserialize(content: String) = content
+    override fun deserialize(bytes: ByteArray) = bytes.decodeToString()
+    override fun deserialize(inputStream: InputStream) = inputStream.reader().readText()
+}
+
+private data class ProgressResponse(
+    val progress: Float,
+    @JsonProperty("eta_relative") val eta: Float,
+    @JsonProperty("current_image") val currentImage: String?,
+)
+
+class Progress(
+    val progress: Float,
+    val eta: Float,
+    val currentImage: ByteArray?,
+)
 
 private data class FullConfigResponse(
     val version: String,
