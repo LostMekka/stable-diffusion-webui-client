@@ -11,36 +11,36 @@ import com.github.kittinunf.fuel.util.decodeBase64
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.io.InputStream
 import java.io.Reader
 
 object Api {
-    private var fullConfig: FullConfigResponse? = null
-    private suspend fun reloadFullConfig(): FullConfigResponse {
-        return Fuel
-            .get("${Config.apiBasePath}/config")
-            .await<FullConfigResponse>()
-            .also { fullConfig = it }
+    private var availableModels: List<String>? = null
+    suspend fun getAvailableModels(forceReload: Boolean = false): List<String> {
+        val currModels = availableModels
+        return if (currModels == null || forceReload) {
+            data class Model(val title: String)
+            Fuel.get("${Config.apiBasePath}/sdapi/v1/sd-models")
+                .await<List<Model>>()
+                .map { it.title }
+                .also { availableModels = it }
+        } else {
+            currModels
+        }
     }
 
-    private val configMutex = Mutex()
-    private suspend fun getFullConfig() = configMutex.withLock { fullConfig ?: reloadFullConfig() }
-
-    suspend fun getAvailableModels(): List<String> {
-        val element = getFullConfig().components.first { it.props.elementId == "setting_sd_model_checkpoint" }
-        return element.props.choices.orEmpty()
-    }
-
-    suspend fun getAvailableTxt2ImgSamplers(): List<String> {
-        val element = getFullConfig().components.first { it.props.elementId == "txt2img_sampling" }
-        return element.props.choices.orEmpty()
-    }
-
-    suspend fun getAvailableImg2ImgSamplers(): List<String> {
-        val element = getFullConfig().components.first { it.props.elementId == "img2img_sampling" }
-        return element.props.choices.orEmpty()
+    private var availableSamplers: List<String>? = null
+    suspend fun getAvailableSamplers(forceReload: Boolean = false): List<String> {
+        val cache = availableSamplers
+        return if (cache == null || forceReload) {
+            data class Sampler(val name: String)
+            Fuel.get("${Config.apiBasePath}/sdapi/v1/samplers")
+                .await<List<Sampler>>()
+                .map { it.name }
+                .also { availableSamplers = it }
+        } else {
+            cache
+        }
     }
 
     private var currentModel: String? = null
@@ -124,23 +124,6 @@ class Progress(
     val progress: Float,
     val eta: Float,
     val currentImage: ByteArray?,
-)
-
-private data class FullConfigResponse(
-    val version: String,
-    val components: List<ConfigDefinitionElement>,
-)
-
-private data class ConfigDefinitionElement(
-    val id: Int,
-    val type: String,
-    val props: ConfigDefinitionElementProps,
-)
-
-private data class ConfigDefinitionElementProps(
-    val choices: List<String>?,
-    val value: Any?,
-    @JsonProperty("elem_id") val elementId: String?,
 )
 
 data class Txt2ImgRequest(

@@ -59,12 +59,14 @@ fun App() {
     remember {
         CoroutineScope(Dispatchers.IO).launch {
             println("getting models")
-            val currModel = async { Api.getCurrentModel() }
-            val samplers = Api.getAvailableTxt2ImgSamplers()
-            val models = Api.getAvailableModels()
-            val model = currModel.await()
+            val samplersJob = async { Api.getAvailableSamplers() }
+            val modelsJob = async { Api.getAvailableModels() }
+            val currModelJob = async { Api.getCurrentModel() }
+            val samplers = samplersJob.await()
+            val models = modelsJob.await()
+            val currModel = currModelJob.await()
             samplerData = Triple(0, samplers.first(), samplers)
-            modelData = Triple(models.indexOf(model), model, models)
+            modelData = Triple(models.indexOf(currModel), currModel, models)
         }
     }
 
