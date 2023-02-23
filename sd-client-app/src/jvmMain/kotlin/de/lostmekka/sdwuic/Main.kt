@@ -113,9 +113,14 @@ fun App() {
             cfgScale = cfgScale,
         )
 
-    fun updateGenerator() {
-        currGenerator?.config = generatorConfigFromCurrentState()
-        canUpdateGenerator = false
+    fun onEnterPressedInTextInput() {
+        val gen = currGenerator
+        if (gen == null) {
+            if (!working) generate(batchSize)
+        } else {
+            gen.config = generatorConfigFromCurrentState()
+            canUpdateGenerator = false
+        }
     }
 
     MaterialTheme {
@@ -154,7 +159,7 @@ fun App() {
                     prompt = it
                     canUpdateGenerator = true
                 },
-                onEnter = ::updateGenerator,
+                onEnter = ::onEnterPressedInTextInput,
             )
             Input(
                 label = "Negative prompt",
@@ -164,7 +169,7 @@ fun App() {
                     negativePrompt = it
                     canUpdateGenerator = true
                 },
-                onEnter = ::updateGenerator,
+                onEnter = ::onEnterPressedInTextInput,
             )
             Row {
                 Column(modifier = Modifier.weight(1f)) {
@@ -176,7 +181,7 @@ fun App() {
                             batchSize = it
                             canUpdateGenerator = true
                         },
-                        onEnter = ::updateGenerator,
+                        onEnter = ::onEnterPressedInTextInput,
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -188,7 +193,7 @@ fun App() {
                             steps = it
                             canUpdateGenerator = true
                         },
-                        onEnter = ::updateGenerator,
+                        onEnter = ::onEnterPressedInTextInput,
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -200,7 +205,7 @@ fun App() {
                             cfgScale = it
                             canUpdateGenerator = true
                         },
-                        onEnter = ::updateGenerator,
+                        onEnter = ::onEnterPressedInTextInput,
                     )
                 }
             }
