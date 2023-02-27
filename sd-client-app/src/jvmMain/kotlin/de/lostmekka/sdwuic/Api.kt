@@ -135,6 +135,7 @@ data class Txt2ImgRequest(
     val steps: Int,
     @JsonProperty("batch_size") val batchSize: Int,
     @JsonProperty("cfg_scale") val cfgScale: Float,
+    val tiling: Boolean = false,
 )
 
 private data class Txt2ImgResponse(

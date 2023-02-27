@@ -15,6 +15,7 @@ data class GeneratorConfig(
     val steps: Int = 25,
     val batchSize: Int = 4,
     val cfgScale: Float = 7f,
+    val tiling: Boolean = false,
 )
 
 class Generator(
@@ -68,6 +69,7 @@ class Generator(
                         steps = currConfig.steps,
                         batchSize = currConfig.batchSize,
                         cfgScale = currConfig.cfgScale,
+                        tiling = currConfig.tiling,
                     ),
                     progressDelayInMs = 1000,
                     onProgress = onProgress,
@@ -101,7 +103,7 @@ class Generator(
         val formattedNumber = number.format(6)
         File("${Config.stagingDirPath}/${formattedNumber}__config.txt").writeText(
             """
-            config id       $formattedNumber
+            configID        $formattedNumber
             prompt          ${config.prompt}
             negativePrompt  ${config.negativePrompt}
             sampler         ${config.sampler}
@@ -111,6 +113,7 @@ class Generator(
             steps           ${config.steps}
             batchSize       ${config.batchSize}
             cfgScale        ${config.cfgScale}
+            tiling          ${config.tiling}
             """.trimIndent(),
         )
         return formattedNumber

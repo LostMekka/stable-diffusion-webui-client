@@ -4,6 +4,7 @@ import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.Button
+import androidx.compose.material.Checkbox
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
@@ -18,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -46,6 +48,7 @@ fun App() {
     var steps by remember { mutableStateOf(25) }
     var batchSize by remember { mutableStateOf(4) }
     var cfgScale by remember { mutableStateOf(7f) }
+    var useTiling by remember { mutableStateOf(false) }
     val isInitialized = modelData != null && samplerData != null
 
     var working by remember { mutableStateOf(false) }
@@ -96,6 +99,7 @@ fun App() {
                     steps = steps,
                     batchSize = batchSize,
                     cfgScale = cfgScale,
+                    tiling = useTiling,
                 ),
                 progressDelayInMs = 1000,
                 onProgress = ::onProgress,
@@ -113,6 +117,7 @@ fun App() {
             steps = steps,
             batchSize = batchSize,
             cfgScale = cfgScale,
+            tiling = useTiling,
         )
 
     fun onEnterPressedInTextInput() {
@@ -209,6 +214,19 @@ fun App() {
                         },
                         onEnter = ::onEnterPressedInTextInput,
                     )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Row {
+                        Checkbox(
+                            checked = useTiling,
+                            onCheckedChange = {
+                                useTiling = it
+                                canUpdateGenerator = true
+                            },
+                            modifier = Modifier.align(Alignment.CenterVertically),
+                        )
+                        Text("Tiling", modifier = Modifier.align(Alignment.CenterVertically))
+                    }
                 }
             }
             Row {
