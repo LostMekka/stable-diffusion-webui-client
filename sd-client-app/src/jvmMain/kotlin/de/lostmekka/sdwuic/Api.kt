@@ -98,7 +98,8 @@ object Api {
         return Progress(
             response.progress,
             response.eta,
-            response.currentImage?.decodeBase64(),
+            // TODO: split preview grid into individual subimages before reporting progress
+            response.currentImage?.decodeBase64()?.let { listOf(it) },
         )
     }
 }
@@ -123,7 +124,7 @@ private data class ProgressResponse(
 class Progress(
     val progress: Float,
     val eta: Float,
-    val currentImage: ByteArray?,
+    val currentImages: List<ByteArray>?,
 )
 
 data class Txt2ImgRequest(

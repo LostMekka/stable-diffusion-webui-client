@@ -1,13 +1,19 @@
 package de.lostmekka.sdwuic
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.foundation.ContextMenuArea
+import androidx.compose.foundation.ContextMenuItem
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.Button
 import androidx.compose.material.Checkbox
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Slider
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -21,16 +27,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import de.lostmekka.sdwuic.components.ImageTileList
 import de.lostmekka.sdwuic.components.Input
 import de.lostmekka.sdwuic.components.Select
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import org.jetbrains.skia.Image
+import kotlin.math.roundToInt
 
 fun main() = application {
     Window(onCloseRequest = ::exitApplication) {
@@ -53,25 +61,12 @@ fun App() {
 
     var working by remember { mutableStateOf(false) }
     var images by remember { mutableStateOf<List<ByteArray>>(listOf()) }
+    var imagesPerRow by remember { mutableStateOf(4f) }
 
     var currGenerator by remember { mutableStateOf<Generator?>(null) }
     var generatorStatus by remember { mutableStateOf("waiting to start") }
     var progressStatus by remember { mutableStateOf<String?>(null) }
     var canUpdateGenerator by remember { mutableStateOf(false) }
-
-    remember {
-        CoroutineScope(Dispatchers.IO).launch {
-            println("getting models")
-            val samplersJob = async { Api.getAvailableSamplers() }
-            val modelsJob = async { Api.getAvailableModels() }
-            val currModelJob = async { Api.getCurrentModel() }
-            val samplers = samplersJob.await()
-            val models = modelsJob.await()
-            val currModel = currModelJob.await()
-            samplerData = Triple(0, samplers.first(), samplers)
-            modelData = Triple(models.indexOf(currModel), currModel, models)
-        }
-    }
 
     fun busyOperation(op: suspend () -> Unit) {
         working = true
@@ -82,7 +77,7 @@ fun App() {
     }
 
     fun onProgress(progress: Progress) {
-        if (progress.currentImage != null) images = listOf(progress.currentImage)
+        if (progress.currentImages != null) images = progress.currentImages
         progressStatus = "%.2f%%".format(progress.progress * 100)
     }
 
@@ -130,21 +125,46 @@ fun App() {
         }
     }
 
+    fun saveToDisk(image: ByteArray) {
+        CoroutineScope(Dispatchers.IO).launch {
+            ImageWriter.writeImage(generatorConfigFromCurrentState(), image, newBatch = false)
+        }
+    }
+
+    fun refreshModels() {
+        modelData = null
+        CoroutineScope(Dispatchers.IO).launch {
+            println("getting models")
+            val samplersJob = async { Api.getAvailableSamplers() }
+            val modelsJob = async { Api.getAvailableModels() }
+            val currModelJob = async { Api.getCurrentModel() }
+            val samplers = samplersJob.await()
+            val models = modelsJob.await()
+            val currModel = currModelJob.await()
+            samplerData = Triple(0, samplerData?.second ?: samplers.first(), samplers)
+            modelData = Triple(models.indexOf(currModel), currModel, models)
+        }
+    }
+
+    remember { refreshModels() }
+
     MaterialTheme {
         Column {
             modelData
                 ?.also { (index, _, models) ->
-                    Select(index, models) { newIndex, newModel ->
-                        if (modelData?.second != newModel) {
-                            if (currGenerator == null) {
-                                modelData = null
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    Api.setModel(newModel)
+                    ContextMenuArea(items = { listOf(ContextMenuItem("Refresh") { refreshModels() }) }) {
+                        Select(index, models) { newIndex, newModel ->
+                            if (modelData?.second != newModel) {
+                                if (currGenerator == null) {
+                                    modelData = null
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        Api.setModel(newModel)
+                                        modelData = Triple(newIndex, newModel, models)
+                                    }
+                                } else {
                                     modelData = Triple(newIndex, newModel, models)
+                                    canUpdateGenerator = true
                                 }
-                            } else {
-                                modelData = Triple(newIndex, newModel, models)
-                                canUpdateGenerator = true
                             }
                         }
                     }
@@ -295,8 +315,39 @@ fun App() {
                         Text("generate single batch")
                     },
                 )
+                Column {
+                    Text("Preview images per row: ${imagesPerRow.roundToInt()}")
+                    Slider(
+                        value = imagesPerRow,
+                        onValueChange = { imagesPerRow = it },
+                        valueRange = 1f..10f,
+                        steps = 8,
+                    )
+                }
             }
-            if (images.isNotEmpty()) ImageTileList(images, 256.dp)
+            if (images.isNotEmpty()) LazyColumn {
+                for (chunk in images.chunked(imagesPerRow.roundToInt())) item {
+                    Row {
+                        for (image in chunk) Column(modifier = Modifier.weight(1f)) {
+                            ContextMenuArea(
+                                items = {
+                                    listOf(
+                                        ContextMenuItem("Write to disk") { saveToDisk(image) },
+                                        ContextMenuItem("Copy to clipboard") { AppClipboard.copy(image) },
+                                    )
+                                },
+                            ) {
+                                Image(
+                                    bitmap = Image.makeFromEncoded(image).toComposeImageBitmap(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.FillWidth,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

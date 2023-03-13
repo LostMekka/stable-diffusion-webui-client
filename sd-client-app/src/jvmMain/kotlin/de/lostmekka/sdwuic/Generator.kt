@@ -30,7 +30,6 @@ class Generator(
     private val job = CoroutineScope(Dispatchers.IO).launch {
         File(Config.stagingDirPath).mkdirs()
         var currConfig: GeneratorConfig? = null
-        var formattedConfigId = "??????"
         var batchIndex = 0
         var totalBatchCount = 0
         try {
@@ -46,7 +45,6 @@ class Generator(
 
                 val nextConfig = config
                 if (nextConfig.copy(batchSize = currConfig?.batchSize ?: -1) != currConfig) {
-                    formattedConfigId = writeConfigFile(nextConfig)
                     if (currConfig?.model != nextConfig.model) {
                         onStatusChange("loading model ${nextConfig.model}")
                         Api.setModel(nextConfig.model)
@@ -55,7 +53,7 @@ class Generator(
                     batchIndex = 0
                     if (resetBatchCountOnConfigChange) totalBatchCount = 0
                 }
-                val fullFormattedBatchIndex = "${formattedConfigId}_${batchIndex.format(6)}"
+                val fullFormattedBatchIndex = ImageWriter.buildFullBatchName(batchIndex)
 
                 onStatusChange("generating batch $fullFormattedBatchIndex")
 
@@ -78,48 +76,18 @@ class Generator(
                 onStatusChange("writing batch")
                 for ((fileIndex, image) in images.withIndex()) {
                     // TODO: also include the individual file seed in the name
-                    val imagePath = "${Config.stagingDirPath}/${fullFormattedBatchIndex}_$fileIndex.png"
-                    File(imagePath).writeBytes(image)
+                    ImageWriter.writeImage(config, image, fileIndex == 0)
                 }
 
                 batchIndex++
                 totalBatchCount++
+                onProgress(Progress(1f, 0f, images))
             }
         } catch (e: Exception) {
             onStatusChange("error: ${e.message}")
             e.printStackTrace()
         }
     }
-
-    private fun writeConfigFile(config: GeneratorConfig): String {
-        val numberFile = File(Config.configIdFilePath)
-        val number = if (numberFile.exists()) {
-            numberFile.readText().toInt()
-        } else {
-            numberFile.parentFile.mkdirs()
-            0
-        }
-        numberFile.writeText((number + 1).toString())
-        val formattedNumber = number.format(6)
-        File("${Config.stagingDirPath}/${formattedNumber}__config.txt").writeText(
-            """
-            configID        $formattedNumber
-            prompt          ${config.prompt}
-            negativePrompt  ${config.negativePrompt}
-            sampler         ${config.sampler}
-            model           ${config.model}
-            width           ${config.width}
-            height          ${config.height}
-            steps           ${config.steps}
-            batchSize       ${config.batchSize}
-            cfgScale        ${config.cfgScale}
-            tiling          ${config.tiling}
-            """.trimIndent(),
-        )
-        return formattedNumber
-    }
-
-    private fun Int.format(len: Int) = toString().padStart(len, '0')
 
     suspend fun close() {
         cancelled = true
