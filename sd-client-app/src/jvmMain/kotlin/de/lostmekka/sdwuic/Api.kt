@@ -23,6 +23,7 @@ object Api {
             Fuel.get("${Config.apiBasePath}/sdapi/v1/sd-models")
                 .await<List<Model>>()
                 .map { it.title }
+                .sortedBy { it.lowercase() }
                 .also { availableModels = it }
         } else {
             currModels
