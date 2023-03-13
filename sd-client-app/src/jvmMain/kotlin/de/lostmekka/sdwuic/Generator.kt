@@ -76,7 +76,7 @@ class Generator(
                 onStatusChange("writing batch")
                 for ((fileIndex, image) in images.withIndex()) {
                     // TODO: also include the individual file seed in the name
-                    ImageWriter.writeImage(config, image, fileIndex == 0)
+                    ImageWriter.writeImage(currConfig, image, fileIndex == 0)
                 }
 
                 batchIndex++
