@@ -37,6 +37,7 @@ fun Select(selectedIndex: Int, availableValues: List<String>, onChange: (Int, St
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth(0.8f),
         ) {
             for ((i, value) in availableValues.withIndex()) {
                 DropdownMenuItem(
