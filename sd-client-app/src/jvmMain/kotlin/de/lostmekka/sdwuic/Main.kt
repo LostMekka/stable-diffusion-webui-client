@@ -215,7 +215,7 @@ fun App() {
                     Input(
                         label = "Steps",
                         value = steps,
-                        parser = { value -> value.toIntOrNull()?.takeIf { it in 1..100 } },
+                        parser = { value -> value.toIntOrNull()?.takeIf { it in 1..200 } },
                         onChange = {
                             steps = it
                             canUpdateGenerator = true
