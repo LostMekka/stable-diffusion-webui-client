@@ -2,6 +2,7 @@ package de.lostmekka.sdwuic.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.runtime.Composable
@@ -11,17 +12,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.text.TextStyle
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun <T: Any> Input(
+fun <T : Any> Input(
     label: String,
     value: T,
     parser: (String) -> T?,
@@ -30,6 +31,7 @@ fun <T: Any> Input(
 ) {
     var rawValue by remember { mutableStateOf(value.toString()) }
     var isValid by remember { mutableStateOf(true) }
+    val textColor = if (isValid) MaterialTheme.colors.onBackground else MaterialTheme.colors.onError
     TextField(
         value = rawValue,
         label = { Text(label) },
@@ -39,6 +41,7 @@ fun <T: Any> Input(
             if (parsedValue != null) onChange(parsedValue)
             isValid = parsedValue != null
         },
+        textStyle = TextStyle.Default.copy(color = textColor),
         modifier = Modifier
             .fillMaxWidth()
             .onPreviewKeyEvent {
@@ -49,6 +52,6 @@ fun <T: Any> Input(
                     else -> true.also { if (isValid) onEnter() }
                 }
             }
-            .run { if (isValid) this else background(Color.Red) },
+            .run { if (isValid) this else background(MaterialTheme.colors.error) },
     )
 }

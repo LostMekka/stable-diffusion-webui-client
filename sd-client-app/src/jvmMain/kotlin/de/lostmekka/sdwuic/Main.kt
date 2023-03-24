@@ -12,7 +12,6 @@ import androidx.compose.material.Button
 import androidx.compose.material.Checkbox
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Slider
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
@@ -32,6 +31,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import de.lostmekka.sdwuic.components.Input
+import de.lostmekka.sdwuic.components.Label
 import de.lostmekka.sdwuic.components.Select
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -148,7 +148,7 @@ fun App() {
 
     remember { refreshModels() }
 
-    MaterialTheme {
+    Themed {
         Column {
             modelData
                 ?.also { (index, _, models) ->
@@ -245,7 +245,7 @@ fun App() {
                             },
                             modifier = Modifier.align(Alignment.CenterVertically),
                         )
-                        Text("Tiling", modifier = Modifier.align(Alignment.CenterVertically))
+                        Label("Tiling", modifier = Modifier.align(Alignment.CenterVertically))
                     }
                 }
             }
@@ -295,8 +295,8 @@ fun App() {
                 )
             }
             Row {
-                Text("Generator status: $generatorStatus")
-                Text(progressStatus?.let { "($it)" } ?: "")
+                Label("Generator status: $generatorStatus")
+                Label(progressStatus?.let { "($it)" } ?: "")
             }
             Row {
                 Button(
@@ -316,7 +316,7 @@ fun App() {
                     },
                 )
                 Column {
-                    Text("Preview images per row: ${imagesPerRow.roundToInt()}")
+                    Label("Preview images per row: ${imagesPerRow.roundToInt()}")
                     Slider(
                         value = imagesPerRow,
                         onValueChange = { imagesPerRow = it },

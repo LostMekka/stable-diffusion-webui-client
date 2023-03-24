@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -16,7 +17,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -29,10 +29,11 @@ fun Select(selectedIndex: Int, availableValues: List<String>, onChange: (Int, St
     ) {
         Text(
             text = availableValues[selectedIndex],
+            color = MaterialTheme.colors.onBackground,
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { expanded = true }
-                .background(Color.Gray)
+                .background(MaterialTheme.colors.surface)
         )
         DropdownMenu(
             expanded = expanded,
@@ -46,7 +47,7 @@ fun Select(selectedIndex: Int, availableValues: List<String>, onChange: (Int, St
                         onChange(i, value)
                     },
                 ) {
-                    Text(value)
+                    Text(value, color = MaterialTheme.colors.onBackground)
                 }
             }
         }
