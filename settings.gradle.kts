@@ -1,6 +1,5 @@
 pluginManagement {
     repositories {
-        maven("https://gitlab.3m5.de/api/v4/groups/223/-/packages/maven") // 3m5. Gradle plugins
         google()
         gradlePluginPortal()
         mavenCentral()
@@ -14,8 +13,3 @@ pluginManagement {
 }
 
 rootProject.name = "stable-diffusion-webui-client"
-include(
-    // "sd-client-api", // turns out the standard openapi kotlin client doesnt even compile... WAT
-    "sd-client-app",
-)
-// includeBuild("sd-client-generated")
