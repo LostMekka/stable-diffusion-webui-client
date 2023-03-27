@@ -54,6 +54,8 @@ fun App() {
     var modelData by remember { mutableStateOf<Triple<Int, String, List<String>>?>(null) }
     var samplerData by remember { mutableStateOf<Triple<Int, String, List<String>>?>(null) }
     var steps by remember { mutableStateOf(25) }
+    var width by remember { mutableStateOf(512) }
+    var height by remember { mutableStateOf(512) }
     var batchSize by remember { mutableStateOf(4) }
     var cfgScale by remember { mutableStateOf(7f) }
     var useTiling by remember { mutableStateOf(false) }
@@ -89,8 +91,8 @@ fun App() {
                     prompt = prompt,
                     negativePrompt = negativePrompt,
                     sampler = samplerData!!.second,
-                    width = 512,
-                    height = 512,
+                    width = width,
+                    height = height,
                     steps = steps,
                     batchSize = batchSize,
                     cfgScale = cfgScale,
@@ -110,6 +112,8 @@ fun App() {
             model = modelData!!.second, // TODO: make sure models are loaded at this point
             negativePrompt = negativePrompt,
             steps = steps,
+            width = width,
+            height = height,
             batchSize = batchSize,
             cfgScale = cfgScale,
             tiling = useTiling,
@@ -230,6 +234,30 @@ fun App() {
                         parser = { value -> value.toFloatOrNull()?.takeIf { it in 1f..30f } },
                         onChange = {
                             cfgScale = it
+                            canUpdateGenerator = true
+                        },
+                        onEnter = ::onEnterPressedInTextInput,
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Input(
+                        label = "Width",
+                        value = width,
+                        parser = { value -> value.toIntOrNull()?.takeIf { it in 256..2048 } },
+                        onChange = {
+                            width = it
+                            canUpdateGenerator = true
+                        },
+                        onEnter = ::onEnterPressedInTextInput,
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Input(
+                        label = "Height",
+                        value = height,
+                        parser = { value -> value.toIntOrNull()?.takeIf { it in 256..2048 } },
+                        onChange = {
+                            height = it
                             canUpdateGenerator = true
                         },
                         onEnter = ::onEnterPressedInTextInput,
