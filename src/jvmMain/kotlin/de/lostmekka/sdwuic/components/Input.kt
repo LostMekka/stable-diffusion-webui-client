@@ -1,5 +1,7 @@
 package de.lostmekka.sdwuic.components
 
+import androidx.compose.foundation.ContextMenuDataProvider
+import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.MaterialTheme
@@ -28,30 +30,40 @@ fun <T : Any> Input(
     parser: (String) -> T?,
     onChange: (T) -> Unit,
     onEnter: () -> Unit = {},
+    predefinedValues: List<T> = emptyList(),
 ) {
     var rawValue by remember { mutableStateOf(value.toString()) }
     var isValid by remember { mutableStateOf(true) }
     val textColor = if (isValid) MaterialTheme.colors.onBackground else MaterialTheme.colors.onError
-    TextField(
-        value = rawValue,
-        label = { Text(label) },
-        onValueChange = {
-            rawValue = it
-            val parsedValue = parser(it)
-            if (parsedValue != null) onChange(parsedValue)
-            isValid = parsedValue != null
+
+    fun onRawValueChanged(newRawValue: String) {
+        rawValue = newRawValue
+        val parsedValue = parser(newRawValue)
+        if (parsedValue != null) onChange(parsedValue)
+        isValid = parsedValue != null
+    }
+
+    ContextMenuDataProvider(
+        items = {
+            predefinedValues.map { ContextMenuItem("set to: $it") { onRawValueChanged(it.toString()) } }
         },
-        textStyle = TextStyle.Default.copy(color = textColor),
-        modifier = Modifier
-            .fillMaxWidth()
-            .onPreviewKeyEvent {
-                when {
-                    it.isShiftPressed -> false
-                    it.key != Key.Enter -> false
-                    it.type != KeyEventType.KeyUp -> true
-                    else -> true.also { if (isValid) onEnter() }
+    ) {
+        TextField(
+            value = rawValue,
+            label = { Text(label) },
+            onValueChange = ::onRawValueChanged,
+            textStyle = TextStyle.Default.copy(color = textColor),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onPreviewKeyEvent {
+                    when {
+                        it.isShiftPressed -> false
+                        it.key != Key.Enter -> false
+                        it.type != KeyEventType.KeyUp -> true
+                        else -> true.also { if (isValid) onEnter() }
+                    }
                 }
-            }
-            .run { if (isValid) this else background(MaterialTheme.colors.error) },
-    )
+                .run { if (isValid) this else background(MaterialTheme.colors.error) },
+        )
+    }
 }

@@ -249,6 +249,7 @@ fun App() {
                             canUpdateGenerator = true
                         },
                         onEnter = ::onEnterPressedInTextInput,
+                        predefinedValues = predefinedSizes,
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -261,6 +262,7 @@ fun App() {
                             canUpdateGenerator = true
                         },
                         onEnter = ::onEnterPressedInTextInput,
+                        predefinedValues = predefinedSizes,
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -379,3 +381,5 @@ fun App() {
         }
     }
 }
+
+private val predefinedSizes = listOf(256, 512, 768, 1024)
