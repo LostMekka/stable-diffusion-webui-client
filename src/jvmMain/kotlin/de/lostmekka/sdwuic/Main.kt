@@ -137,6 +137,8 @@ fun App() {
 
     fun refreshModels() {
         modelData = null
+        // FIXME: this doesnt work currently
+        // all it does is reset the sampler
         CoroutineScope(Dispatchers.IO).launch {
             println("getting models")
             val samplersJob = async { Api.getAvailableSamplers() }
